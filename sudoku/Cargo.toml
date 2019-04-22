@@ -1,0 +1,8 @@
+[package]
+name = "sudoku"
+version = "0.1.0"
+authors = ["mike <mike@tropic.org.uk>"]
+edition = "2018"
+
+[dependencies]
+rayon = "1.0.3"
