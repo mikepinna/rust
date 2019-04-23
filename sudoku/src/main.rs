@@ -1,5 +1,10 @@
 extern crate rayon;
+
+use std::io::BufReader;
+use std::io::Read;
+use std::fs::File;
 use rayon::prelude::*;
+
 
 fn make_bitmasks_box(a: &mut [[bool;81]]) {
     for n in 0..9 {
@@ -80,13 +85,13 @@ fn parse_board(s: &str) -> [Option<u8>;81] {
     let mut counter = 0;
 
     for c in s.chars() {
-        if let Some (d) = c.to_digit(10) {
-            if d == 0 { panic!("board contained a zero") }
-            ret[counter] = Some ((d - 1) as u8);
+        if c == ' ' || c == '0' {
+            // no need to set this entry as is already set to None by default
             counter += 1;
         }
-        else if c == ' ' {
-            // no need to set this entry as is already set to None by default
+        else if let Some (d) = c.to_digit(10) {
+            if d == 0 { panic!("zero not handled") }
+            ret[counter] = Some ((d - 1) as u8);
             counter += 1;
         }
     }
@@ -153,30 +158,47 @@ fn solve_board(board: &[Option<u8>;81], bitmasks: &[[bool;81];27]) -> Option<[Op
     }
 }
 
-fn main() {
-    let test_board_str = "\
-        +---+---+---+\
-        |  4| 59| 78|\
-        | 8 |  2|3  |\
-        |5  |   | 1 |\
-        +---+---+---+\
-        |6  | 4 | 8 |\
-        |  1|   |7  |\
-        | 7 | 3 |  5|\
-        +---+---+---+\
-        | 5 |   |  9|\
-        |  8|5  | 6 |\
-        |91 |26 |5  |\
-        +---+---+---+";
-
-    let bitmasks = make_bitmasks();
-    let board = parse_board(test_board_str);
-
-    print_board(&board);
-
-    if let Some (solved) = solve_board(&board, &bitmasks) {
-        print_board(&solved);
-    } else {
-        println!("Solver failed :(");
+fn parse_boards(filename : String) -> std::io::Result<Vec<[Option<u8>;81]>> {
+    let file = File::open(filename)?;
+    let mut buf_reader = BufReader::new(file);
+    let mut contents = String::new();
+    buf_reader.read_to_string(&mut contents)?;
+    let lines: Vec<_> = contents.lines().collect();
+    let grouped = lines.chunks_exact(10);
+    
+    let mut ret = Vec::new();
+    for group in grouped {
+        if !group[0].starts_with("Grid") {
+            panic!("file format error");
+        }
+        ret.push(parse_board(&group[1..].join("\n")));
     }
+
+    Ok(ret)
+}
+
+fn main() {
+    let bitmasks = make_bitmasks();
+
+    let boards = parse_boards("p096_sudoku.txt".to_string()).expect("board parse fail");
+
+    let mut sum = 0;
+
+    for board in boards {
+        print_board(&board);
+        if let Some (solved) = solve_board(&board, &bitmasks) {
+            print_board(&solved);
+            let a = solved[0].unwrap() as i32;
+            let b = solved[1].unwrap() as i32;
+            let c = solved[2].unwrap() as i32;
+            let n = 100*(1+a) + 10*(1+b) + 1*(1+c);
+            println!("n={}", n);
+            sum += n;
+        } else {
+            panic!("Solver failed :(");
+        }
+    }
+
+    println!("Final sum: {}", sum);
+
 }
